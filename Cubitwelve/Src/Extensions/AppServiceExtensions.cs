@@ -1,21 +1,24 @@
+using System.Text;
 using Cubitwelve.Src.Data;
-using Microsoft.EntityFrameworkCore;
-using DotNetEnv;
+using Cubitwelve.Src.Exceptions;
 using Cubitwelve.Src.Repositories;
 using Cubitwelve.Src.Repositories.Interfaces;
-using Cubitwelve.Src.Services.Interfaces;
 using Cubitwelve.Src.Services;
+using Cubitwelve.Src.Services.Interfaces;
+using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.OpenApi.Models;
-using Cubitwelve.Src.Exceptions;
 
 namespace Cubitwelve.Src.Extensions
 {
     public static class AppServiceExtensions
     {
-        public static void AddApplicationServices(this IServiceCollection services, IConfiguration config)
+        public static void AddApplicationServices(
+            this IServiceCollection services,
+            IConfiguration config
+        )
         {
             InitEnvironmentVariables();
             AddAutoMapper(services);
@@ -23,7 +26,7 @@ namespace Cubitwelve.Src.Extensions
             AddSwaggerGen(services);
             AddDbContext(services);
             AddUnitOfWork(services);
-            AddAuthentication(services, config);
+            // AddAuthentication(services, config);
             AddHttpContextAccesor(services);
         }
 
@@ -47,21 +50,25 @@ namespace Cubitwelve.Src.Extensions
             services.AddSwaggerGen(c =>
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Cubitwelve API", Version = "v1" })
             );
-
         }
 
         private static void AddDbContext(IServiceCollection services)
         {
             var connectionUrl = Env.GetString("DB_CONNECTION");
 
-            services.AddDbContext<DataContext>(opt => {
-                opt.UseSqlServer(connectionUrl, sqlServerOpt => {
-                    sqlServerOpt.EnableRetryOnFailure(
-                        maxRetryCount: 10,
-                        maxRetryDelay: System.TimeSpan.FromSeconds(30),
-                        errorNumbersToAdd: null
-                    );
-                });
+            services.AddDbContext<DataContext>(opt =>
+            {
+                opt.UseSqlServer(
+                    connectionUrl,
+                    sqlServerOpt =>
+                    {
+                        sqlServerOpt.EnableRetryOnFailure(
+                            maxRetryCount: 10,
+                            maxRetryDelay: System.TimeSpan.FromSeconds(30),
+                            errorNumbersToAdd: null
+                        );
+                    }
+                );
             });
         }
 
@@ -75,22 +82,29 @@ namespace Cubitwelve.Src.Extensions
             services.AddAutoMapper(typeof(MappingProfile).Assembly);
         }
 
-        private static IServiceCollection AddAuthentication(IServiceCollection services, IConfiguration config)
+        private static IServiceCollection AddAuthentication(
+            IServiceCollection services,
+            IConfiguration config
+        )
         {
-            var jwtSecret = Env.GetString("JWT_SECRET") ??
-                throw new InvalidJwtException("JWT_SECRET not present in .ENV");
+            var jwtSecret =
+                Env.GetString("JWT_SECRET")
+                ?? throw new InvalidJwtException("JWT_SECRET not present in .ENV");
 
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
+            services
+                .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSecret)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false
-                };
-            });
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.ASCII.GetBytes(jwtSecret)
+                        ),
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                    };
+                });
             return services;
         }
 
@@ -98,7 +112,5 @@ namespace Cubitwelve.Src.Extensions
         {
             services.AddHttpContextAccessor();
         }
-
-
     }
 }
